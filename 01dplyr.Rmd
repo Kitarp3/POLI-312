@@ -1,0 +1,294 @@
+---
+title: "01dplyr"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Github
+
+- Signing in to github
+
+- Create repository
+
+- Add files on repository
+
+# Dplyr {#dplyr}
+
+## Gapminder
+
+```{r R.options=list(max.print=10)}
+# Set the working directory 
+# setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) 
+
+#the p_load function first checks if the package is installed, installs those packages that are missing, and then loads them all.
+library(pacman)
+pacman::p_load(gapminder, tidyverse)
+
+# The gapminder dataset is loaded from the gapminder package - for each of 142 countries, the package provides values for life expectancy, GDP per capita, and population, every five years, from 1952 to 2007.
+
+# The common method to view an object in R is the str function
+str(gapminder)
+
+# The glimpse function in dplyr is similar, but specialized to data frames
+glimpse(gapminder)
+
+# You can also take a look at the first few observations using head()
+head(gapminder)
+```
+
+## Filter and slice
+
+The functions filter and slice select a subset of rows in a data frame.
+
+```{r R.options=list(max.print=10)}
+# Select all rows from Canada
+filter(gapminder, country == "Canada")
+
+# Select all observations in 2002 or 2007
+filter(gapminder, year %in% c(2002, 2007))
+
+# Multiple arguments, are equivalent to "and"
+# Select all rows with `lifeExp` less than 50 and population more than 50 million, and in Asia
+filter(gapminder,
+       lifeExp < 50,
+       pop > 50e+6,
+       continent == "Asia")
+
+# The previous code is equivalent to
+filter(gapminder, lifeExp < 50 & pop > 50e+6 & continent == "Asia")
+
+# Select all rows with an average life expectancy less than 50 or GDP per capita less than 456, in Asia, for years after 1970,
+filter(gapminder, lifeExp < 50 | gdpPercap < 456, continent == "Asia", year > 1970)
+
+# Select the rows 6 to 10
+slice(gapminder, 6:10)
+```
+
+## Exercise
+
+Produce a new object with a subset of the gapminder data since 2000 that includes both European and American countries where gdpPercap is greater than 30000. Make it flexible! How many observations are we left with?
+
+## Arrange
+
+Arrange sorts rows by a variable
+
+```{r R.options=list(max.print=10)}
+#Sort by life expectancy from lowest to highest,
+arrange(gapminder, lifeExp)
+
+# Sort by life expectancy from highest to lowest (descending values),
+arrange(gapminder, desc(lifeExp))
+
+# You can sort by multiple columns. Sort by year, then continent, then country
+arrange(gapminder, year, continent, country)
+```
+
+## Select
+
+The select function selects columns.
+
+```{r R.options=list(max.print=10)}
+colnames(gapminder)
+
+# Select columns by name
+dplyr::select(gapminder, country, year, lifeExp)
+
+# Equivalent to:
+gapminder[,c("country","year","lifeExp")]
+
+# You can also select by column number 
+dplyr::select(gapminder, 1:2)
+
+# Select all columns between `country` and `year` and between pop and gdpPercap
+dplyr::select(gapminder, country:year, pop:gdpPercap)
+
+#Select all columns between country and year *except* continent
+dplyr::select(gapminder, country:year, -continent)
+
+# Reorder columns so that year is first, country is second, with the remaining columns in the same order
+dplyr::select(gapminder, year, country, everything())
+```
+
+## Rename
+
+Rename columns with the rename() function
+
+```{r R.options=list(max.print=10)}
+# Rename pop to population, gdpPercap to gdp_per_cap, and lifeExp to life_expectancy
+rename(gapminder,
+       population = pop,
+       gdp_per_cap = gdpPercap,
+       life_expectancy = lifeExp)
+```
+
+## Mutate
+
+Mutate performs functions on existing columns to produce new columns. Transmute replace existing columns with the created columns.
+
+```{r R.options=list(max.print=10)}
+# Add the columns GDP, log GDP per capita, log population, and log GDP, and a dummy variable for North America
+# Caution: Will drop original columns
+transmute(gapminder,
+          GDP = pop * gdpPercap,
+          log_pop = log(pop),
+          log_gdpPercap = log(gdpPercap),
+          na = country %in% c("United States", "Mexico", "Canada"))
+
+# Use mutate to keep existing columns
+mutate(gapminder,
+       GDP = pop * gdpPercap)
+```
+
+## Across
+
+Across also performs functions on existing columns to produce new columns, but simplifies the process of applying the same operation on multiple columns.
+
+```{r R.options=list(max.print=10)}
+# It is tedious to mutate multiple columns. To apply one or more functions to one or more columns, use across
+mutate(gapminder, 
+       across(lifeExp:gdpPercap, log))
+```
+
+## Summarize
+
+The function summarize collapses a data frame to a single row, summarized by functions.
+
+When we want to do measures of central tendency, we should use summarize. 
+
+```{r R.options=list(max.print=10)}
+# Create a data frame with the minimum and maximum years, the minimum, maximum, and median life expectancy, the average population, and the average GDP per capita, total number of observations, number of unique years, and number of unique countries.
+summarize(gapminder,
+          year_min = min(year),
+          year_max = max(year),
+          life_exp_min = min(lifeExp),
+          life_exp_max = max(lifeExp),
+          life_exp_median = median(lifeExp),
+          pop = median(pop),
+          gdpPercap = mean(gdpPercap),
+          nobs = length(country),
+          n_years = length(unique(year)),
+          n_continent = length(unique(continent)))
+
+# It is inconvenient if you need to summarize multiple columns with multiple functions. Using across simplifies that by applying one or more functions to one or more columns.
+
+# First, let's create an object specifying the functions we will apply to our dataframe
+funs <- list(
+  min = ~min(.x), 
+  max = ~max(.x),
+  mean = ~mean(.x)
+)
+
+# Then let's use summarize along with across to apply these functions to our dataframe
+summarize(gapminder,
+          across(c(year:pop), 
+                 funs))
+```
+
+## Exercise
+
+Create a new dataframe with only two columns: country_continent_year and the length of the country_continent_year string. You may need to google!
+
+What is the min, max, median, and mean of the length of the country_continent_year string?
+
+## Row-wise
+
+We can also perform operations over rows using the rowwise function.
+
+```{r}
+# Using rowwise, we specify that we want the following operation to be applied to each individual row of the dataframe.
+gapminder %>% 
+  rowwise() %>% 
+  mutate(mean_num = mean(c_across(where(is.numeric))))
+# We specify where(is.numeric) to let R know we only want the function to be applied to numeric variables.
+```
+
+## Pivot_wider
+
+Pivot_wider takes column-value pairs and expands them into multiple columns
+
+```{r R.options=list(max.print=10)}
+# Let's select the country, year, and pop columns
+data_to_spread <- dplyr::select(gapminder, country, year, pop)
+head(data_to_spread)
+
+# pivot_wider can turn the year-pop pairs into multiple columns 
+#(each year will become a column)
+wide_data <- pivot_wider(data_to_spread,
+                         names_from = year, values_from = pop)
+head(wide_data)
+```
+
+## Pivot_longer
+
+Pivot_longer takes multiple columns and collapses into column-value pairs.
+Pivot_longer does the opposite of pivot_wider. Let's recreate our country-year dataset. 
+
+```{r R.options=list(max.print=10)}
+wide_data %>% 
+pivot_longer(!country, names_to = "year", values_to = "pop")
+  
+# Why do we include the !country argument?
+# Why do we specify year and pop here?
+# Why are year and pop between quotation marks here?
+```
+
+Both pivot functions are extremely powerful and important. Visit the tidyr website (https://tidyr.tidyverse.org/articles/pivot.html) for more information on these.
+
+## Piping
+
+Piping allows you to use the output from one dplyr function as the input to another.
+
+```{r R.options=list(max.print=10)}
+# At its most basic, piping replaces the data = argument in a function
+gapminder %>%
+  mutate(GDP = pop * gdpPercap) # is equivalent to...
+
+mutate(gapminder, GDP = pop *gdpPercap)
+
+gapminder %>% 
+  summarise(gdpPercap_mean = mean(gdpPercap))
+
+# It is mostly useful when we want to do multiple operations
+# Say we only wanted the gdp per capita mean of Africa
+x <- filter(gapminder, continent == "Africa")
+
+summarise(x,
+          gdpPercap_mean = mean(gdpPercap))
+
+gapminder %>% 
+  filter(continent == "Africa") %>% 
+  summarise(gdpPercap_mean = mean(gdpPercap))
+```
+
+Piping is very powerful and can allow a set of complex operations (as shown below).
+
+## Group by
+
+Use the group_by function to group the data frame. 
+
+```{r R.options=list(max.print=10)}
+# For each country, calculate its average, median, and maximum GDP per capita, and median life expectancy,
+gapminder %>%
+  group_by(country) %>%
+  summarise(gdpPercap_mean = mean(gdpPercap),
+            gdpPercap_median = median(gdpPercap),
+            gdpPercap_max = max(gdpPercap),
+            lifeExp_median = median(lifeExp)) %>%
+  head()
+
+# For each year, find the three countries with the lowest GDP per capita
+gapminder %>%
+  group_by(year) %>%
+  arrange(gdpPercap) %>%
+  slice(1:3)
+```
+
+## Exercise
+
+Which African and which Asian country has the highest sum of logged gdpPercap and logged lifeExp in 2007? Can you write this in one sequence of pipes?
+
+All functions have numerous extensions, many of which you will possibly have to use at some point during the semester. Package documentation (e.g. `?slice`) and google are your best friends here.
+

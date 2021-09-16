@@ -1,0 +1,382 @@
+---
+title: "02ggplot"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Gentle ggplot {#ggplot1}
+
+## Preliminary steps
+
+Load packages
+
+```{r}
+pacman::p_load(ggplot2, gapminder, tidyverse, car, plyr, ggthemes, devtools, stats, viridis, plotly)
+```
+
+Load the gapminder dataset
+
+```{r, eval = FALSE}
+gapminder <- gapminder
+
+# What do the first 6 observations look like?
+head(gapminder)
+```
+
+## ggplot grammar
+
+ggplot doesn't work like a standard function in R in that you don't put every argument inside the function. Instead, you first create your plot and add geom, stat, scale, theme, facet and labels using the "+" sign. The most basic functions are: 
+
+* **geoms**: Tell R what you want to do with the data (what type of graph you want to create)
+* **labs**: Used to label the axis and add a title to your plot
+* **themes**: Used to customize the non-data components of your plots (titles, labels, fonts, background, gridlines, and legends)
+
+The ggplot() function is used to begin the plotting process. In and of itself, it doesn't plot anything - it simply provides the basic structure of the graph. You can think of it as the "skeleton" of your graph. 
+
+```{r}
+# ggplot requires data and mappings. In this case we want to understand the relationship between gdp and life expectancy
+ggplot(data = gapminder,
+       mapping = aes(x = gdpPercap, y = lifeExp))
+```
+
+We then add layers on top. Note that the arguments used inside aes() will be passed to the different geoms that we may use. 
+
+## geom_point
+
+Use geom_point to create a scatterplot
+
+```{r, eval = FALSE}
+# Adding a geom_point to create a scatterplot
+ggplot(data = gapminder, mapping = aes(x = gdpPercap, y = lifeExp)) +
+  geom_point()
+
+# We can also add colours, sizes and facets
+# Here the col argument is *inside* the aes() for geom_point, so the color
+# will be determined by the values of a particular variable
+ggplot(data = gapminder, mapping = aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(col = continent))
+
+# If I simply want a color for all points, I can specify the color outside of aes()
+ggplot(data = gapminder, mapping = aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(col = "blue")
+
+# I can use facet_grid() to create multiple panels based on some variable
+ggplot(data = gapminder, mapping = aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(col = continent)) +
+  facet_grid(~continent)
+
+# With horizontal panels instead
+ggplot(data = gapminder, mapping = aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(col = continent)) +
+  facet_grid(continent~.)
+
+# I can modify the size based on population size 
+# Again, if I wanted to change the default size for all points, 
+# I could use the size argument outside aes()
+ggplot(data = gapminder, mapping = aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(col = continent, size = pop))
+
+# And all sorts of other things
+ggplot(data = gapminder, mapping = aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(fill = continent, size = pop, alpha = pop), pch = 21) +
+  facet_grid(continent~.)
+
+# As an side...You can even make CATTER PLOTS!!!
+install_github("Gibbsdavidl/CatterPlots")
+library(CatterPlots)
+
+CatterPlots::multicat(xs= runif(12, 0, 1), ys=runif(12, 0, 1), cat=c(1, 2, 3, 4, 5), catcolor='#000000FF')
+```
+
+ggplot is very powerful. I encourage you all to take a look at the ggplot lessons on datacamp.
+
+## geom_histogram 
+
+Use geom_histogram to create a histogram
+
+```{r, eval = FALSE}
+# lets say we want a histogram of gdpPercap
+ggplot(data = gapminder, mapping = aes(x = gdpPercap)) +
+  geom_histogram()
+
+# Modifying the binwidth
+ggplot(data = gapminder, mapping = aes(x = gdpPercap)) +
+  geom_histogram(binwidth = 100)
+```
+
+This is a bit hard to interpret, so let's restrict to just countries with less than 45000 gdp per capita, and add a facet grid.
+
+```{r message = FALSE}
+filter(gapminder, gdpPercap <= 45000) %>%
+  ggplot(mapping = aes(x = gdpPercap)) +
+  geom_histogram() +
+  facet_grid(~continent) +
+  scale_x_discrete(limits = c(0, 20000, 40000))
+```
+
+## geom_density
+Similar to geom_histogram, but very useful if you want to compare distributions in the same plot
+
+```{r}
+# Using filter() and a pipe, so I don't have to specify the data argument
+filter(gapminder, continent %in% c("Africa", "Asia")) %>% 
+  ggplot(mapping = aes(x = gdpPercap, fill = continent)) +
+  geom_density(alpha = 0.7)
+
+# Aplying a log transformation.
+# What can yousay about these distributions?
+filter(gapminder, continent %in% c("Africa", "Asia")) %>% 
+  ggplot(mapping = aes(x = log(gdpPercap), fill = continent)) +
+  geom_density(alpha = 0.7)
+```
+
+## geom_boxplot
+
+Use geom_boxplot to create a boxplot
+
+```{r eval=FALSE}
+ggplot(data = gapminder, mapping = aes(y = lifeExp)) +
+  geom_boxplot()
+```
+
+```{r}
+# We need to add an x value
+ggplot(data = gapminder, mapping = aes(x = continent, y = gdpPercap)) +
+  geom_boxplot()
+```
+
+## Exercise
+
+Again, we have the same problem - can we rerun this chart on a single year of data with countries with gdp per capitas lower than 45000 and choose only one year?
+
+
+## Labels
+
+Simply use the labs function to specify the title of the graph and the labels of the axis
+
+```{r}
+ggplot(data = gapminder, mapping = aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(col = continent, size = pop)) +
+  facet_grid(continent~.) +
+  labs(title = "GDP per Capita and life expectancy",
+       subtitle = "hello yes there is more information here",
+       x = "GDP per Capita",
+       y = "Life expectancy",
+       caption = "even more information here!")
+```
+
+## Themes
+
+Themes allow you to customize the non-data components of your plots. E.g. theme_bw() produces a nice black and white graph:
+
+```{r}
+ggplot(data = gapminder, mapping = aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(col = continent, size = pop)) +
+  facet_grid(continent~.) +
+  labs(title = "GDP per Capita and life expectancy",
+       x = "GDP per Capita",
+       y = "Life expectancy") +
+  theme_bw()
+```
+
+Some themes can also help you format your graph to fit in a particular newspaper/magazine:
+
+- theme_stata()
+- theme_wsj()
+- theme_economist()
+
+These are from the ggthemes package. 
+
+```{r}
+ggplot(data = gapminder, mapping = aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(col = continent, size = pop)) +
+  facet_grid(continent~.) +
+  labs(title = "Do rich people live longer?",
+       x = "GDP per capita",
+       y = "Life expectancy") +
+  theme_economist()
+```
+
+Here is a list of functions if you want to modify elements of a theme (e.g. size and position of the title, axis and legend): 
+https://ggplot2.tidyverse.org/reference/theme.html 
+
+Example:
+
+```{r}
+ggplot(data = gapminder, mapping = aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(col = continent, size = pop)) +
+  facet_grid(continent~.) +
+  labs(title = "Do rich people live longer?",
+       x = "GDP per capita",
+       y = "Life expectancy") +
+  theme_economist() +
+  theme(legend.text = element_text(size = 7),
+        legend.position = "right",
+        legend.direction = "vertical")
+```
+
+You can even create a custom theme. 
+
+What if we want to get rid of the legend? 
+
+```{r}
+ggplot(data = gapminder, mapping = aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(col = continent, size = pop)) +
+  facet_grid(continent~.) +
+  labs(title = "Do rich people live longer?",
+       x = "GDP per capita",
+       y = "Life expectancy") +
+  guides(col = FALSE,
+         size = FALSE)
+```
+
+What about the axes?
+
+```{r}
+ggplot(data = gapminder, mapping = aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(col = continent, size = pop)) +
+  facet_grid(continent~.) +
+  labs(title = "Do rich people live longer?",
+       x = "GDP per capita",
+       y = "Life expectancy") +
+  scale_x_continuous(limits = c(0, 120000),
+                     breaks = seq(from = 0, to = 120000, by = 10000))
+```
+
+What if I want to change the colors created using aes?
+
+```{r}
+# You can manually specify the colors
+ggplot(data = gapminder, mapping = aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(col = continent, size = pop)) +
+  facet_grid(continent~.) +
+  labs(title = "Do rich people live longer?",
+       x = "GDP per capita",
+       y = "Life expectancy") +
+  scale_x_continuous(limits = c(0, 120000),
+                     breaks = seq(from = 0, to = 120000, by = 10000)) +
+  scale_color_manual(name = "Continent", # Name of the legend
+                     values = c("blue", "red", "black", "grey", "yellow"),
+                     labels = c("Continent 1", "Continent 2", "another one...", "continent 4", "last continent"))
+
+# Or use a pre-existing palette. I quite like palettes from the viridis package
+# You can manually specify the colors
+ggplot(data = gapminder, mapping = aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(col = continent, size = pop)) +
+  facet_grid(continent~.) +
+  labs(title = "Do rich people live longer?",
+       x = "GDP per capita",
+       y = "Life expectancy") +
+  scale_x_continuous(limits = c(0, 120000),
+                     breaks = seq(from = 0, to = 120000, by = 10000)) +
+  scale_color_manual(values = viridis(5))
+
+# all viridis does is poduce a vector of HEX codes 
+viridis(5)
+```
+
+## Interactive plots
+
+We can use the plotly package to create interactive plots. 
+```{r}
+# Everything inside aes() will be used to create a nice panel 
+# that gives information about each observation. 
+# I add label = country to also get the country name
+gdp_plot <- filter(gapminder, year == 2007) %>% 
+  ggplot(mapping = aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(col = continent, size = pop, label = country)) +
+  facet_grid(continent~.) +
+  labs(title = "Do rich people live longer?",
+       x = "GDP per capita",
+       y = "Life expectancy") +
+  scale_x_continuous(limits = c(0, 120000),
+                     breaks = seq(from = 0, to = 120000, by = 10000)) +
+  scale_color_manual(values = viridis(5))
+
+ggplotly(gdp_plot)
+```
+
+## Neat trick to highlight certain observations 
+```{r}
+gapminder <- gapminder %>% 
+  mutate(can_usa = ifelse(country %in% c("Canada", "United States"), 1, 0) %>% factor())
+
+ggplot(gapminder, aes(x = log(gdpPercap), y = lifeExp)) +
+  geom_point(aes(col = can_usa,
+                 alpha = ifelse(can_usa == "1", 1, 0.5))) +
+  scale_color_manual(values = c("0" = "black", "1" = "red")) +
+  guides(col = FALSE,
+         alpha = FALSE)
+```
+
+# Exercise
+
+I want to see the evolution of life expectancy over time in each of the continent. 
+
+```{r}
+
+```
+
+
+
+## ggplot tips and tricks
+  
+We are going to use the Prestige dataset from the car package. The dataset was constructed using 1971 census data from Canada. Each observation of the dataset (n = 102) is an occupation (e.g. biologists, secretaries, athletes, etc.) and the variables are: the average `education` and `income` for the respondents with those occupations, the percentage of `women` respondents, the `prestige` of the occupation (Pineo-Porter prestige score: social survey from the 1960s), and `type`of occupation (Blue collar -bc-, Professional -prof-, and White Collar -wc-).
+
+```{r, eval = FALSE}
+library(car)
+glimpse(Prestige)
+# qplot is a shortcut for ggplot that more closely resembles plot
+qplot(x = income, geom="density", data = Prestige)
+```
+
+This chart shows an uneven distribution, but how uneven? You might want to show it next to what a normal distribution would be. We can visualize it compared to a normal distribution using the stat_function geom from ggplot.
+
+```{r}
+# first we get the mean and sd of income so we can produce a dnorm
+sd_income <- sd(Prestige$income)
+mean_income <- mean(Prestige$income)
+# next we do our basic qplot but this time we add (just like ggplot) a stat_function, which we pass a function to (dnorm) and then args of the dnorm function as a list
+qplot(x = income, geom="density", data = Prestige, colour = I("blue")) +
+  stat_function(col = "red",
+                fun = dnorm, 
+                args = list(mean = mean_income, sd = sd_income))
+# args: list of the arguments that this function (here: dnorm) takes (mean, and sd). 
+```
+
+```{r}
+# this can of course be done in ggplot as well (with many more options for customization!)
+ggplot(data = Prestige, aes(x = income)) +
+  geom_line(stat = "density", col = "blue", size = 1) + 
+  stat_function(col = "red",
+                size = 1,
+                fun = dnorm, 
+                args = list(mean = mean_income, sd = sd_income)) +
+  theme(legend.position="bottom")
+# You can also use geom_density rather than geom_line
+ggplot(data = Prestige, aes(x = income)) +
+  geom_density(col = "blue", size = 1) + 
+  stat_function(col = "red",
+                size = 1,
+                fun = dnorm, 
+                args = list(mean = mean_income, sd = sd_income)) +
+  theme(legend.position="bottom")
+```
+
+Note that qplot can work with vectors while ggplot needs a data frame. If you are trying to show a normal distribution, you can use something like:
+
+```{r}
+ggplot(data.frame(values = c(-3, 3)), aes(x = values)) +
+  stat_function(fun = dnorm)
+# default: mean = 0, sd = 1 
+# You can technically use any type of function you want with stat_function
+functionx <- function(x){
+  x^3
+}
+ggplot(data.frame(values = c(-3, 3)), aes(x = values)) +
+  stat_function(fun = functionx)
+```
